@@ -30,6 +30,7 @@ import com.cburch.logisim.data.AttributeDefaultProvider;
 import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.Location;
 import com.cburch.logisim.instance.Instance;
+import com.cburch.logisim.prefs.AppPreferences;
 import com.cburch.logisim.std.wiring.Pin;
 import com.cburch.logisim.tools.Library;
 import com.cburch.logisim.tools.Tool;
@@ -177,7 +178,16 @@ class XmlReader {
 			}
 		}
 
-		private void initToolbarData(Element elt) {
+		private void initToolbarData() {
+            InputStream is = AppPreferences.getToolBarDataInputStream();
+            Document doc = null;
+			try {
+				doc = loadXmlFrom(is);
+			} catch (SAXException | IOException e) {
+				e.printStackTrace();
+			}
+            Element elt = doc.getDocumentElement();
+
 			ToolbarData toolbar = file.getOptions().getToolbarData();
 			for (Element sub_elt : XmlIterator.forChildElements(elt)) {
 				if (sub_elt.getTagName().equals("sep")) {
@@ -325,8 +335,6 @@ class XmlReader {
 					}
 				} else if (name.equals("mappings")) {
 					initMouseMappings(sub_elt);
-				} else if (name.equals("toolbar")) {
-					initToolbarData(sub_elt);
 				} else if (name.equals("main")) {
 					String main = sub_elt.getAttribute("name");
 					Circuit circ = file.getCircuit(main);
@@ -337,6 +345,7 @@ class XmlReader {
 					file.addMessage(sub_elt.getAttribute("value"));
 				}
 			}
+			initToolbarData();
 
 			// fourth, execute a transaction that initializes all the circuits
 			XmlCircuitReader builder;

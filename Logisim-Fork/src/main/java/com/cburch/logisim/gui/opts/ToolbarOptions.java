@@ -15,8 +15,15 @@ import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
+import org.w3c.dom.Document;
+
+import com.cburch.logisim.file.Loader;
 import com.cburch.logisim.file.ToolbarData;
+import com.cburch.logisim.file.XmlWriter;
 import com.cburch.logisim.gui.main.ProjectExplorer;
 import com.cburch.logisim.gui.main.ProjectExplorer.Event;
 import com.cburch.logisim.tools.AddTool;
@@ -30,18 +37,23 @@ class ToolbarOptions extends OptionsPanel {
 			Object src = event.getSource();
 			if (src == addTool) {
 				doAddTool(explorer.getSelectedTool().cloneTool());
+				saveToolBarData();
 			} else if (src == addSeparator) {
 				getOptions().getToolbarData().addSeparator();
+				saveToolBarData();
 			} else if (src == moveUp) {
 				doMove(-1);
+				saveToolBarData();
 			} else if (src == moveDown) {
 				doMove(1);
+				saveToolBarData();
 			} else if (src == remove) {
 				int index = list.getSelectedIndex();
 				if (index >= 0) {
 					getProject().doAction(ToolbarActions.removeTool(getOptions().getToolbarData(), index));
 					list.clearSelection();
 				}
+				saveToolBarData();
 			}
 		}
 
@@ -185,5 +197,18 @@ class ToolbarOptions extends OptionsPanel {
 		moveDown.setText(Strings.get("toolbarMoveDown"));
 		remove.setText(Strings.get("toolbarRemove"));
 		list.localeChanged();
+	}
+	private void saveToolBarData() {
+		Loader loader = getLogisimFile().getLoader();
+		DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+		DocumentBuilder docBuilder = null;
+		try {
+			docBuilder = docFactory.newDocumentBuilder();
+		} catch (ParserConfigurationException e) {
+			e.printStackTrace();
+		}
+		Document doc = docBuilder.newDocument();
+		XmlWriter writer = new XmlWriter(getLogisimFile(), doc, loader);
+		writer.saveToolBarData();
 	}
 }

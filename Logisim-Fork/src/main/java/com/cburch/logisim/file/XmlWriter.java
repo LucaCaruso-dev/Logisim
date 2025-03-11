@@ -33,12 +33,13 @@ import com.cburch.logisim.comp.ComponentFactory;
 import com.cburch.logisim.data.Attribute;
 import com.cburch.logisim.data.AttributeDefaultProvider;
 import com.cburch.logisim.data.AttributeSet;
+import com.cburch.logisim.prefs.AppPreferences;
 import com.cburch.logisim.tools.Library;
 import com.cburch.logisim.tools.Tool;
 import com.cburch.logisim.util.InputEventUtil;
 import com.cburch.logisim.util.StringUtil;
 
-class XmlWriter {
+public class XmlWriter {
 	static void write(LogisimFile file, OutputStream out, LibraryLoader loader)
 			throws ParserConfigurationException, TransformerConfigurationException, TransformerException {
 		DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
@@ -71,13 +72,13 @@ class XmlWriter {
 	private LibraryLoader loader;
 	private HashMap<Library, String> libs = new HashMap<Library, String>();
 
-	private XmlWriter(LogisimFile file, Document doc, LibraryLoader loader) {
+	public XmlWriter(LogisimFile file, Document doc, LibraryLoader loader) {
 		this.file = file;
 		this.doc = doc;
 		this.loader = loader;
 	}
 
-	void addAttributeSetContent(Element elt, AttributeSet attrs, AttributeDefaultProvider source) {
+	void addAttributeSetContent(Element elt, AttributeSet attrs, AttributeDefaultProvider source, Document doc) {
 		if (attrs == null)
 			return;
 		LogisimVersion ver = Main.VERSION;
@@ -128,7 +129,7 @@ class XmlWriter {
 	Element fromCircuit(Circuit circuit) {
 		Element ret = doc.createElement("circuit");
 		ret.setAttribute("name", circuit.getName());
-		addAttributeSetContent(ret, circuit.getStaticAttributes(), null);
+		addAttributeSetContent(ret, circuit.getStaticAttributes(), null, doc);
 		if (!circuit.getAppearance().isDefaultAppearance()) {
 			Element appear = doc.createElement("appear");
 			for (Object o : circuit.getAppearance().getObjectsFromBottom()) {
@@ -174,7 +175,7 @@ class XmlWriter {
 			ret.setAttribute("lib", lib_name);
 		ret.setAttribute("name", source.getName());
 		ret.setAttribute("loc", comp.getLocation().toString());
-		addAttributeSetContent(ret, comp.getAttributeSet(), comp.getFactory());
+		addAttributeSetContent(ret, comp.getAttributeSet(), comp.getFactory(), doc);
 		return ret;
 	}
 
@@ -196,7 +197,7 @@ class XmlWriter {
 			if (attrs != null) {
 				Element toAdd = doc.createElement("tool");
 				toAdd.setAttribute("name", t.getName());
-				addAttributeSetContent(toAdd, attrs, t);
+				addAttributeSetContent(toAdd, attrs, t, doc);
 				if (toAdd.getChildNodes().getLength() > 0) {
 					ret.appendChild(toAdd);
 				}
@@ -227,7 +228,6 @@ class XmlWriter {
 
 		ret.appendChild(fromOptions());
 		ret.appendChild(fromMouseMappings());
-		ret.appendChild(fromToolbarData());
 
 		for (Circuit circ : file.getCircuits()) {
 			ret.appendChild(fromCircuit(circ));
@@ -241,7 +241,7 @@ class XmlWriter {
 		for (Map.Entry<Integer, Tool> entry : map.getMappings().entrySet()) {
 			Integer mods = entry.getKey();
 			Tool tool = entry.getValue();
-			Element toolElt = fromTool(tool);
+			Element toolElt = fromTool(tool, doc);
 			String mapValue = InputEventUtil.toString(mods.intValue());
 			toolElt.setAttribute("map", mapValue);
 			elt.appendChild(toolElt);
@@ -251,11 +251,11 @@ class XmlWriter {
 
 	Element fromOptions() {
 		Element elt = doc.createElement("options");
-		addAttributeSetContent(elt, file.getOptions().getAttributeSet(), null);
+		addAttributeSetContent(elt, file.getOptions().getAttributeSet(), null, doc);
 		return elt;
 	}
 
-	Element fromTool(Tool tool) {
+	Element fromTool(Tool tool, Document doc) {
 		Library lib = findLibrary(tool);
 		String lib_name;
 		if (lib == null) {
@@ -275,21 +275,26 @@ class XmlWriter {
 		if (lib_name != null)
 			elt.setAttribute("lib", lib_name);
 		elt.setAttribute("name", tool.getName());
-		addAttributeSetContent(elt, tool.getAttributeSet(), tool);
+		addAttributeSetContent(elt, tool.getAttributeSet(), tool, doc);
 		return elt;
 	}
 
-	Element fromToolbarData() {
-		Element elt = doc.createElement("toolbar");
+	Element fromToolbarData(Document doc) {
+
+		Element ret = doc.createElement("toolbar");
+
 		ToolbarData toolbar = file.getOptions().getToolbarData();
 		for (Tool tool : toolbar.getContents()) {
 			if (tool == null) {
-				elt.appendChild(doc.createElement("sep"));
+				ret.appendChild(doc.createElement("sep"));
 			} else {
-				elt.appendChild(fromTool(tool));
+				ret.appendChild(fromTool(tool, doc));
 			}
 		}
-		return elt;
+
+		doc.appendChild(ret);
+
+		return ret;
 	}
 
 	Element fromWire(Wire w) {
@@ -305,5 +310,35 @@ class XmlWriter {
 				return true;
 		}
 		return false;
+	}
+
+	public void saveToolBarData() {
+		DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+		DocumentBuilder docBuilder = null;
+		try {
+			docBuilder = docFactory.newDocumentBuilder();
+		} catch (ParserConfigurationException e) {
+			e.printStackTrace();
+		}
+		Document doc = docBuilder.newDocument();
+		for (Library lib : file.getLibraries()) {
+			fromLibrary(lib);
+		}
+		fromToolbarData(doc);
+
+		try {
+        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        Transformer transformer = transformerFactory.newTransformer();
+        
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+        DOMSource source = new DOMSource(doc);
+        StreamResult result = new StreamResult(AppPreferences.getToolBarDataFile());
+        
+        transformer.transform(source, result);
+    	} catch (TransformerException e) {
+        	e.printStackTrace();
+    	}
+
 	}
 }

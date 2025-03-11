@@ -4,10 +4,15 @@
 package com.cburch.logisim.prefs;
 
 import java.beans.PropertyChangeListener;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Locale;
 import java.util.prefs.BackingStoreException;
@@ -223,8 +228,8 @@ public class AppPreferences {
 	public static final String METAL = MetalLookAndFeel.class.getName();
 	public static final PrefMonitor<String> LOOK_AND_FEEL = create(
 			new PrefMonitorStringOpts("lookAndFeel", new String[] { SYSTEM, NIMBUS, METAL }, SYSTEM));
-    //Logisim Folder Preferences
-    public static final String LOGISIM_FOLDER = "not_set";
+	// Logisim Folder Preferences
+	public static final String LOGISIM_FOLDER = "not_set";
 	// hidden window preferences - not part of the preferences dialog, changes
 	// to preference does not affect current windows, and the values are not
 	// saved until the application is closed
@@ -326,6 +331,60 @@ public class AppPreferences {
 		return LibrariesFolder;
 	}
 
+	public static File getToolBarDataFile() {
+		getPrefs();
+		String path = prefs.get(TEMPLATE_FILE, null);
+		if (path == null) {
+			prefs.put(TEMPLATE_FILE, File.separator + "Logisim");
+		}
+		return new File(path + File.separator + "ToolBarData.xml");
+	}
+
+	public static InputStream getToolBarDataInputStream() {
+		String path = getPrefs().get(TEMPLATE_FILE, null);
+		InputStream ret = Startup.class.getClassLoader()
+				.getResourceAsStream("resources/logisim/default_toolbardata.xml");
+
+		if (path != null) {
+			File file = new File(path + File.separator + "ToolBarData.xml");
+			if (!file.exists() || isFileEmpty(file)) {
+				try {
+					file.getParentFile().mkdirs();
+					file.createNewFile();
+					try (FileOutputStream out = new FileOutputStream(file)) {
+						byte[] buffer = new byte[1024];
+						int bytesRead;
+						while ((bytesRead = ret.read(buffer)) != -1) {
+							out.write(buffer, 0, bytesRead);
+						}
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			if (!file.canRead()) {
+				return ret;
+			}
+			try {
+				ret = new FileInputStream(file);
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+		}
+
+		return ret;
+	}
+
+	private static boolean isFileEmpty(File file) {
+		// Return true if second line of file is empty
+		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+			reader.readLine(); // skip first line
+			return reader.readLine() == null;
+		} catch (IOException e) {
+			return true;
+		}
+	}
+
 	private static Template getPlainTemplate() {
 		if (plainTemplate == null) {
 			ClassLoader ld = Startup.class.getClassLoader();
@@ -388,14 +447,14 @@ public class AppPreferences {
 	public static Template getTemplate() {
 		getPrefs();
 		switch (templateType) {
-		case TEMPLATE_PLAIN:
-			return getPlainTemplate();
-		case TEMPLATE_EMPTY:
-			return getEmptyTemplate();
-		case TEMPLATE_CUSTOM:
-			return getCustomTemplate();
-		default:
-			return getPlainTemplate();
+			case TEMPLATE_PLAIN:
+				return getPlainTemplate();
+			case TEMPLATE_EMPTY:
+				return getEmptyTemplate();
+			case TEMPLATE_CUSTOM:
+				return getCustomTemplate();
+			default:
+				return getPlainTemplate();
 		}
 	}
 
