@@ -335,7 +335,7 @@ public class AppPreferences {
 		getPrefs();
 		String path = prefs.get(TEMPLATE_FILE, null);
 		if (path == null) {
-			prefs.put(TEMPLATE_FILE, File.separator + "Logisim");
+			prefs.put(TEMPLATE_FILE, "Logisim");
 		}
 		return new File(path + File.separator + "ToolBarData.xml");
 	}
