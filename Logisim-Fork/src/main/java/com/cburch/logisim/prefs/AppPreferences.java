@@ -12,7 +12,6 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Locale;
 import java.util.prefs.BackingStoreException;
@@ -335,7 +334,8 @@ public class AppPreferences {
 		getPrefs();
 		String path = prefs.get(TEMPLATE_FILE, null);
 		if (path == null) {
-			prefs.put(TEMPLATE_FILE, "Logisim");
+			prefs.put(TEMPLATE_FILE, System.getProperty("user.home") + File.separator + "Logisim");
+			return new File(System.getProperty("user.home") + File.separator + "Logisim" + File.separator + "ToolBarData.xml");
 		}
 		return new File(path + File.separator + "ToolBarData.xml");
 	}

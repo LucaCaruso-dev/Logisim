@@ -72,7 +72,7 @@ public class XmlWriter {
 	private LibraryLoader loader;
 	private HashMap<Library, String> libs = new HashMap<Library, String>();
 
-	public XmlWriter(LogisimFile file, Document doc, LibraryLoader loader) {
+	XmlWriter(LogisimFile file, Document doc, LibraryLoader loader) {
 		this.file = file;
 		this.doc = doc;
 		this.loader = loader;
@@ -279,9 +279,14 @@ public class XmlWriter {
 		return elt;
 	}
 
-	Element fromToolbarData(Document doc) {
+	Element fromToolbarData() {
 
 		Element ret = doc.createElement("toolbar");
+		doc.appendChild(ret);
+		ret.appendChild(
+				doc.createTextNode("\nThis file is intended to be loaded by Logisim http://logisim.altervista.org\n"));
+		ret.setAttribute("version", "1.0");
+		ret.setAttribute("source", Main.VERSION_NAME);
 
 		ToolbarData toolbar = file.getOptions().getToolbarData();
 		for (Tool tool : toolbar.getContents()) {
@@ -291,8 +296,6 @@ public class XmlWriter {
 				ret.appendChild(fromTool(tool, doc));
 			}
 		}
-
-		doc.appendChild(ret);
 
 		return ret;
 	}
@@ -312,7 +315,7 @@ public class XmlWriter {
 		return false;
 	}
 
-	public void saveToolBarData() {
+	public static void saveToolBarData(LogisimFile file, Loader loader) {
 		DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
 		DocumentBuilder docBuilder = null;
 		try {
@@ -321,10 +324,12 @@ public class XmlWriter {
 			e.printStackTrace();
 		}
 		Document doc = docBuilder.newDocument();
+
+		XmlWriter writer = new XmlWriter(file, doc, loader);
 		for (Library lib : file.getLibraries()) {
-			fromLibrary(lib);
+			writer.fromLibrary(lib);
 		}
-		fromToolbarData(doc);
+		writer.fromToolbarData();
 
 		try {
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
